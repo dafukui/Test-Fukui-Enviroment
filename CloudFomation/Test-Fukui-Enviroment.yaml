@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create Test-Fukui-Enviroment"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VPCName
+          - VPCCider
+          - IGWName
+          - RouteTableName
+          - NetworkAclName
+          - SubnetName01
+          - SubnetCider01
+      - Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - EC2Name
+          - EC2ImageID
+          - EC2InstanceType
+          - EC2KeyPair
+          - EC2VolumeSize
+          - SecurityGroupName
+Parameters:
+  VPCCider:
+    Type: String
+    Default: 10.0.0.0/16
+  VPCName:
+    Type: String
+    Default: test-fukui-vpc
+  IGWName:
+    Type: String
+    Default: test-fukui-igw
+  RouteTableName:
+    Type: String
+    Default: test-fukui-rtb
+  NetworkAclName:
+    Type: String
+    Default: test-fukui-acl
+  SubnetName01:
+    Type: String
+    Default: test-fukui-subnet01
+  SubnetCider01:
+    Type: String
+    Default: 10.0.1.0/24
+  SecurityGroupName:
+    Type: String
+    Default: test-fukui-server-sg
+  EC2Name:
+    Type: String
+    Default: test-fukui-server
+  EC2ImageID:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    AllowedValues:
+    - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    - /aws/service/ami-windows-latest/Windows_Server-2016-Japanese-Full-Base
+  EC2InstanceType:
+    Type: String
+    Default: t2.micro
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+  EC2VolumeSize:
+    Type: String
+    Default: 8
+Resources:
+  TestFukuiVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref VPCCider
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VPCName
+  TestFukuiIGW:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref IGWName
+  TestFukuiAttachIGW:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref TestFukuiVPC
+      InternetGatewayId: !Ref TestFukuiIGW
+  TestFukuiRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref TestFukuiVPC
+      Tags:
+        - Key: Name
+          Value: !Ref RouteTableName
+  TestFukuiPublicrtb:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref TestFukuiIGW
+      RouteTableId: !Ref TestFukuiRouteTable
+  TestFukuiACL:
+    Type: "AWS::EC2::NetworkAcl"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref NetworkAclName
+      VpcId: !Ref TestFukuiVPC
+  TestFukuiNetworkEgressAclEgressEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: true
+      NetworkAclId: !Ref TestFukuiACL
+      Protocol: -1
+      RuleAction : allow
+      RuleNumber : 100
+  TestFukuiNetworkEgressAclIngressEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: false
+      NetworkAclId: !Ref TestFukuiACL
+      Protocol: -1
+      RuleAction : allow
+      RuleNumber : 100
+  TestFukuiSubnet1a:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref TestFukuiVPC
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: !Ref SubnetCider01
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Ref SubnetName01
+  TestFukuiPublicRtb1:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref TestFukuiSubnet1a
+      RouteTableId: !Ref TestFukuiRouteTable
+  TestFukuiAclAssociation1:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId: !Ref TestFukuiSubnet1a
+      NetworkAclId: !Ref TestFukuiACL
+  TestFukuiSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref TestFukuiVPC
+      GroupName: !Ref SecurityGroupName
+      GroupDescription: "SecurityGroup for Server"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: operator
+      Tags:
+        - Key: Name
+          Value:  !Ref SecurityGroupName
+  TestFukuiServer:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      ImageId: !Ref EC2ImageID
+      InstanceType: !Ref EC2InstanceType
+      KeyName: !Ref EC2KeyPair
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: !Ref EC2VolumeSize
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - !Ref TestFukuiSecurityGroup
+      SubnetId: !Ref TestFukuiSubnet1a
+      Tags:
+        - Key: Name
+          Value: !Ref EC2Name
