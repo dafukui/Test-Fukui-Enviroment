@@ -12,7 +12,13 @@ Metadata:
           - RouteTableName
           - NetworkAclName
           - SubnetName01
+          - SubnetName02
+          - SubnetName03
+          - SubnetName04
           - SubnetCider01
+          - SubnetCider02
+          - SubnetCider03
+          - SubnetCider04
       - Label:
           default: "EC2 Configuration"
         Parameters:
@@ -21,7 +27,8 @@ Metadata:
           - EC2InstanceType
           - EC2KeyPair
           - EC2VolumeSize
-          - SecurityGroupName
+          - SecurityGroupName01
+          - SecurityGroupName02
 Parameters:
   VPCCider:
     Type: String
@@ -41,12 +48,33 @@ Parameters:
   SubnetName01:
     Type: String
     Default: test-fukui-subnet01
+  SubnetName02:
+    Type: String
+    Default: test-fukui-subnet02
+  SubnetName03:
+    Type: String
+    Default: test-fukui-subnet03
+  SubnetName04:
+    Type: String
+    Default: test-fukui-subnet04
   SubnetCider01:
     Type: String
     Default: 10.0.1.0/24
-  SecurityGroupName:
+  SubnetCider02:
+    Type: String
+    Default: 10.0.2.0/24
+  SubnetCider03:
+    Type: String
+    Default: 10.0.3.0/24
+  SubnetCider04:
+    Type: String
+    Default: 10.0.4.0/24
+  SecurityGroupName01:
     Type: String
     Default: test-fukui-server-sg
+  SecurityGroupName02:
+    Type: String
+    Default: test-fukui-db-sg
   EC2Name:
     Type: String
     Default: test-fukui-server
@@ -146,7 +174,7 @@ Resources:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       VpcId: !Ref TestFukuiVPC
-      GroupName: !Ref SecurityGroupName
+      GroupName: !Ref SecurityGroupName01
       GroupDescription: "SecurityGroup for Server"
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -156,7 +184,22 @@ Resources:
           Description: operator
       Tags:
         - Key: Name
-          Value:  !Ref SecurityGroupName
+          Value: !Ref SecurityGroupName01
+  TestDbSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref TestFukuiVPC
+      GroupName: !Ref SecurityGroupName02
+      GroupDescription: "SecurityGroup for Server"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+          Description: operator
+      Tags:
+        - Key: Name
+          Value: !Ref SecurityGroupName02
   TestFukuiServer:
     Type: "AWS::EC2::Instance"
     Properties:
